@@ -1,6 +1,6 @@
 import PropertyCard from "../components/PropertyCard";
 import { mockProperties } from "@/data/mockProperties";
-import Link from "next/link";
+import Button from "@/components/Button";
 
 export default function Home() {
   const featuredProperties = mockProperties.slice(0, 3);
@@ -27,12 +27,9 @@ export default function Home() {
           ))}
         </div>
         <div className="text-center mt-8">
-          <Link
-            href="/properties"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition-colors duration-300"
-          >
+          <Button href="/properties" variant="primary" size="lg">
             Tüm İlanları Görüntüle
-          </Link>
+          </Button>
         </div>
       </section>
     </main>
