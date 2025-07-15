@@ -1,8 +1,11 @@
-import { notFound } from "next/navigation";
-import Image from "next/image";
-import { mockProperties } from "@/data/mockProperties";
-import { PROPERTY_TYPE_LABELS } from "@/lib/constants";
-import { fetchPropertyById } from "@/data/api";
+import type { Metadata } from "next";
+import { getPropertyById, getAllPropertyIds } from "@/data/api";
+import PropertyDetail from "@/components/properties/PropertyDetail";
+import ImageGallery from "@/components/properties/ImageGallery";
+import MapDisplay from "@/components/properties/MapDisplay";
+import Breadcrumbs from "@/components/common/Breadcrumbs";
+import ContactForm from "@/components/forms/ContactForm";
+import Link from "next/link";
 
 interface PropertyDetailPageProps {
   params: {
@@ -10,113 +13,112 @@ interface PropertyDetailPageProps {
   };
 }
 
-export default async function PropertyDetailPage({
+export async function generateMetadata({
   params,
-}: PropertyDetailPageProps) {
-  const property = await fetchPropertyById(params.id);
+}: PropertyDetailPageProps): Promise<Metadata> {
+  const property = await getPropertyById(params.id);
 
   if (!property) {
-    notFound();
+    return {
+      title: "İlan Bulunamadı - MyRealEstateApp",
+      description: "Aradığınız emlak ilanı bulunamadı.",
+    };
   }
 
-  const propertyTypeLabel =
-    PROPERTY_TYPE_LABELS[property.type] || property.type;
-
-  return (
-    <main className="container mx-auto p-4 py-8">
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="relative h-96 w-full">
-          <Image
-            src={property.images[0] || "/images/house-placeholder.jpg"}
-            alt={property.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            style={{ objectFit: "cover" }}
-            className="rounded-t-lg"
-            priority
-          />
-        </div>
-        <div className="p-6">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-3">
-            {property.title}
-          </h1>
-          <p className="text-2xl text-blue-600 font-bold mb-4">
-            {property.price.toLocaleString("tr-TR")} {property.currency}
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-gray-700 text-lg">
-            <div>
-              <p>
-                <strong className="font-semibold">Banyo Sayısı:</strong>{" "}
-                {property.numberOfBathrooms}
-              </p>
-              <p>
-                <strong className="font-semibold">Balkon:</strong>{" "}
-                {property.hasBalcony ? "Var" : "Yok"}
-              </p>
-              <p>
-                <strong className="font-semibold">Bahçe:</strong>{" "}
-                {property.hasGarden ? "Var" : "Yok"}
-              </p>
-            </div>
-            <div className="col-span-full">
-              <p>
-                <strong className="font-semibold">Eşyalı:</strong>{" "}
-                {property.isFurnished ? "Evet" : "Hayır"}
-              </p>
-
-              <p>
-                <strong className="font-semibold">İlan Tipi:</strong>{" "}
-                {propertyTypeLabel}
-              </p>
-
-              <p>
-                <strong className="font-semibold">İlan Tarihi:</strong>{" "}
-                {new Date(property.listedDate).toLocaleDateString("tr-TR")}
-              </p>
-            </div>
-          </div>
-
-          <h2 className="text-3xl font-bold text-gray-800 mt-8 mb-4">
-            Açıklama
-          </h2>
-          <p className="text-gray-700 leading-relaxed">
-            {property.description}
-          </p>
-
-          {property.images.length > 1 && (
-            <div className="mt-8">
-              <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                Diğer Görseller
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {property.images.slice(1).map((img) => (
-                  <div
-                    key={img}
-                    className="relative w-full h-32 rounded-lg overflow-hidden"
-                  >
-                    <Image
-                      src={img}
-                      alt={`${property.title} - Ek Resim`}
-                      fill
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                      style={{ objectFit: "cover" }}
-                      className="transition-transform duration-300 hover:scale-105"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </main>
-  );
+  return {
+    title: `${property.title} - ${property.location.city}, ${property.location.district} - MyRealEstateApp`,
+    description: property.description.substring(0, 160) + "...",
+    keywords: [
+      property.propertyType,
+      property.location.city,
+      property.location.district,
+      property.listingType === "Sale" ? "satılık" : "kiralık",
+      property.title.toLowerCase(),
+    ],
+    openGraph: {
+      title: `${property.title} - MyRealEstateApp`,
+      description: property.description.substring(0, 160) + "...",
+      url: `https://your-emlak-website.com/properties/${property.id}`,
+      images: [
+        {
+          url:
+            property.images[0] ||
+            "[https://placehold.co/800x600/E0F2F7/2C3E50?text=Default+Property](https://placehold.co/800x600/E0F2F7/2C3E50?text=Default+Property)",
+          width: 800,
+          height: 600,
+          alt: property.title,
+        },
+      ],
+    },
+  };
 }
 
 export async function generateStaticParams() {
-  const prop = mockProperties || [];
-  return prop.map((property) => ({
-    id: property.id,
+  const ids = await getAllPropertyIds();
+  return ids.map((id) => ({
+    id: id.toString(),
   }));
+}
+
+export default async function PropertyDetailPage({
+  params,
+}: PropertyDetailPageProps) {
+  const property = await getPropertyById(params.id);
+
+  if (!property) {
+    return (
+      <div className="text-center py-20">
+        <h1 className="text-4xl font-bold text-red-600 mb-4">
+          404 - İlan Bulunamadı
+        </h1>
+        <p className="text-lg text-gray-700">
+          Aradığınız emlak ilanı mevcut değil veya silinmiş olabilir.
+        </p>
+        <Link
+          href="/properties"
+          className="mt-6 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md transition-colors duration-300"
+        >
+          Tüm İlanlara Geri Dön
+        </Link>
+      </div>
+    );
+  }
+
+  const breadcrumbItems = [
+    { label: "Anasayfa", href: "/" },
+    { label: "Emlak İlanları", href: "/properties" },
+    { label: property.title, href: `/properties/${property.id}` },
+  ];
+
+  return (
+    <div className="container mx-auto p-4">
+      <Breadcrumbs items={breadcrumbItems} />
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+          {property.title}
+        </h1>
+        <p className="text-xl text-gray-700 mb-6">
+          {property.location.neighborhood}, {property.location.district},{" "}
+          {property.location.city}
+        </p>
+
+        <ImageGallery images={property.images} />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+          <div className="md:col-span-2">
+            <PropertyDetail property={property} />
+          </div>
+          <aside className="md:col-span-1">
+            <div className="bg-blue-50 p-6 rounded-lg shadow-md mb-6">
+              <h3 className="text-2xl font-bold text-blue-800 mb-4">
+                İlan Sahibiyle İletişim
+              </h3>
+              <ContactForm propertyTitle={property.title} />
+            </div>
+            <MapDisplay location={property.location} />
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
 }
